@@ -1,0 +1,47 @@
+name: agent-sandbox
+
+services:
+  sandbox:
+    build:
+      context: .
+      args:
+        AGENT_UID: ${AGENT_UID:-501}
+        AGENT_GID: ${AGENT_GID:-501}
+        CODEX_VERSION: ${CODEX_VERSION}
+        CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION}
+        HERDR_VERSION: ${HERDR_VERSION}
+        MOSHI_HOOK_VERSION: ${MOSHI_HOOK_VERSION}
+    image: agent-sandbox:local
+    container_name: agent-sandbox
+    hostname: agent-sandbox
+    restart: unless-stopped
+    ports:
+      - "${SSH_BIND_ADDRESS:-0.0.0.0}:${SSH_PORT:-49222}:22/tcp"
+    volumes:
+      - type: bind
+        source: ${GITHUB_ROOT}
+        target: /workspace
+      - type: volume
+        source: agent-home
+        target: /home/agent
+      - type: volume
+        source: ssh-host-keys
+        target: /etc/ssh/host_keys
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      TERM: xterm-256color
+      COLORTERM: truecolor
+      TZ: ${TZ:-UTC}
+    working_dir: /workspace
+    stop_grace_period: 15s
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 22"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  agent-home:
+  ssh-host-keys:

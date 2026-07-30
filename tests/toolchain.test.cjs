@@ -13,7 +13,7 @@ const compose = fs.readFileSync(
   "utf8",
 );
 
-test("builds the ProcessOS toolchain into the sandbox image", () => {
+test("builds the development toolchain into the sandbox image", () => {
   for (const expected of [
     "PYTHON_VERSION",
     "UV_VERSION",

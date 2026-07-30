@@ -28,14 +28,14 @@ Runtime version lines and independently downloaded tool releases are pinned in
 the selected environment file so upgrades remain deliberate. Run
 `./sandbox versions` to inspect the installed versions.
 
-## Camunda 8 and ProcessOS support
+## Camunda 8 development support
 
-The container has the toolchain needed for Camunda 8 and ProcessOS development:
+The container has the toolchain needed for Camunda 8 development:
 
 - `c8` and `c8ctl` are equivalent entry points to the pinned Camunda CLI.
 - Java 25 and Maven support Java clients, connectors, and job workers.
-- Node.js, Python, and uv support ProcessOS scripts and evaluation tooling.
-- A mounted ProcessOS checkout can be used directly from an agent session.
+- Node.js, Python, and uv support application code and development tooling.
+- Mounted project checkouts can be used directly from an agent session.
 - An opt-in `host-local` profile lets c8ctl and application clients reach a
   Camunda 8 cluster running on the Docker host.
 
@@ -238,9 +238,9 @@ host's SSH keys or GitHub configuration into the container.
 
 The sandbox can opt in to a Camunda 8 cluster that is already running on the
 Docker host. This is useful when an agent needs to deploy or inspect Camunda
-resources, run a Java worker, or work with ProcessOS while keeping the cluster
-outside the sandbox. The host remains responsible for `c8run`, cluster startup,
-shutdown, logs, and upgrades. The sandbox receives no Docker socket.
+resources or run a Java worker while keeping the cluster outside the sandbox.
+The host remains responsible for `c8run`, cluster startup, shutdown, logs, and
+upgrades. The sandbox receives no Docker socket.
 
 Start the local cluster on the host first, then enable the connection:
 
@@ -291,9 +291,9 @@ This is a logical opt-in, not a network firewall. The container has normal
 outbound networking and can reach host services that Docker Desktop exposes.
 The helper makes the intended Camunda connection explicit and reversible.
 Workflows that require Docker, such as starting `c8run` or running
-Docker-backed ProcessOS test environments, should remain on the host or CI.
-Ordinary ProcessOS authoring, CLI operations, Java builds, and agent workflows
-can run inside the sandbox against mounted projects.
+Docker-backed integration tests, should remain on the host or CI. Camunda
+resource authoring, CLI operations, Java builds, and agent workflows can run
+inside the sandbox against mounted projects.
 
 ## Pair Moshi agent hooks
 

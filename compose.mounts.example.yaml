@@ -1,0 +1,17 @@
+{
+  "services": {
+    "sandbox": {
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/Users/your-name/Github",
+          "target": "/workspace",
+          "read_only": false,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ]
+    }
+  }
+}

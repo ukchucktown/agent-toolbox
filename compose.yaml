@@ -18,9 +18,6 @@ services:
     ports:
       - "${SSH_BIND_ADDRESS:-0.0.0.0}:${SSH_PORT:-49222}:22/tcp"
     volumes:
-      - type: bind
-        source: ${GITHUB_ROOT}
-        target: /workspace
       - type: volume
         source: agent-home
         target: /home/agent

@@ -3,16 +3,16 @@
 A container-scoped remote development host for
 [Moshi](https://getmoshi.app/), [Herdr](https://herdr.dev/), Codex CLI, and
 Claude Code. The container exposes a key-only SSH endpoint and mounts a chosen
-host directory at `/workspace`.
+set of host directories at explicit paths inside the container.
 
 The Docker runtime retains the `agent-sandbox` name so existing installations
 can upgrade without creating new containers or volumes.
 
 ## Security boundary
 
-The container can read, modify, and delete everything below the configured
-`GITHUB_ROOT`. Mount only directories whose entire contents may be accessed by
-the agents.
+The container can read, modify, and delete everything in each read-write bind
+mount. Mount only directories whose entire contents may be accessed by the
+agents, and prefer read-only mounts when modification is unnecessary.
 
 The container does not mount the rest of the host home directory, host SSH
 configuration, system credential stores, or the Docker socket, and it is not
@@ -33,12 +33,12 @@ making the SSH endpoint reachable outside the host.
 
 - Docker Desktop or Docker Engine with Compose
 - Bash
-- A host directory to mount as `/workspace`
+- One or more host directories to mount
 - Moshi on a mobile device, if remote terminal access is desired
 
 ## Configure
 
-The launcher reads configuration in this order:
+The launcher reads environment configuration in this order:
 
 1. The file named by `AGENT_TOOLBOX_ENV_FILE`
 2. `~/.config/agent-toolbox/agent-sandbox.env`
@@ -56,10 +56,66 @@ For a Stow-managed setup, store the file in the dotfiles tree at:
 .config/agent-toolbox/agent-sandbox.env
 ```
 
-At minimum, set `GITHUB_ROOT` to the directory agents may access. The example
-binds SSH to `127.0.0.1` for a safe local-only default. To connect from another
-device on the LAN, deliberately change `SSH_BIND_ADDRESS` to `0.0.0.0` after
-configuring key authentication.
+The example binds SSH to `127.0.0.1` for a safe local-only default. To connect
+from another device on the LAN, deliberately change `SSH_BIND_ADDRESS` to
+`0.0.0.0` after configuring key authentication.
+
+### Manage mounts
+
+Mount configuration is discovered independently:
+
+1. The file named by `AGENT_TOOLBOX_MOUNTS_FILE`
+2. `~/.config/agent-toolbox/compose.mounts.yaml`
+3. The ignored `compose.mounts.yaml` file in this repository
+
+The mount file is authoritative; the base Compose file contains no host bind
+mounts. Its JSON syntax is also valid YAML and can be loaded directly by Docker
+Compose. Initialize the primary workspace with:
+
+```bash
+./sandbox mount add /absolute/host/projects /workspace
+```
+
+Then use the launcher instead of editing the file:
+
+```bash
+# Show the active mount file and its entries.
+./sandbox mount list
+
+# Add another read-write directory.
+./sandbox mount add /absolute/host/path /mounts/project
+
+# Add a read-only directory.
+./sandbox mount add /absolute/host/docs /mounts/docs --read-only
+
+# Remove a mount by its container target.
+./sandbox mount remove /mounts/docs
+```
+
+Host sources must already exist. Container targets must be absolute and cannot
+overlap the persistent `/home/agent` or `/etc/ssh/host_keys` mounts. The script
+also sets `create_host_path: false`, preventing a mistyped host path from being
+silently created as an empty directory. At least one mount must remain
+configured.
+
+Mount commands change configuration only. Review and apply the result
+explicitly:
+
+```bash
+./sandbox config
+./sandbox up
+```
+
+When `~/.config` is managed by Stow, the helper updates the file inside the
+private dotfiles repository. Commit that dotfiles change to preserve the mount
+list for future machines.
+
+Applying a changed mount configuration recreates the container and stops its
+current processes. The named credential, history, Moshi, and SSH-host-key
+volumes are retained. Exit active agents and Herdr work before applying.
+
+To initialize a mount file without the helper, copy
+`compose.mounts.example.yaml` to one of the supported locations.
 
 ## Build and start
 
@@ -160,8 +216,9 @@ cd /workspace/<project>
 herdr
 ```
 
-Start `codex` or `claude` in Herdr tabs. Every project below `GITHUB_ROOT` is
-available below `/workspace`.
+Start `codex` or `claude` in Herdr tabs. The primary project mount is normally
+available below `/workspace`; additional directories appear at their configured
+container targets.
 
 ## Reach it away from home
 
@@ -193,6 +250,8 @@ not needed.
 ./sandbox shell          Open a local container shell
 ./sandbox restart        Restart
 ./sandbox status         Show container and tool status
+./sandbox config         Show the merged Compose configuration
+./sandbox mount list     Show configured bind mounts
 ./sandbox logs           Follow logs
 ./sandbox moshi-install  Refresh hooks after an agent upgrade
 ```

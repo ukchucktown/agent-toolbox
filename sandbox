@@ -3,9 +3,86 @@
 set -euo pipefail
 
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-local_env_file="${project_dir}/.env"
 config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
 managed_env_file="${config_home}/agent-toolbox/agent-sandbox.env"
+managed_mounts_file="${config_home}/agent-toolbox/compose.mounts.yaml"
+local_env_file="${project_dir}/.env"
+local_mounts_file="${project_dir}/compose.mounts.yaml"
+mount_tool="${project_dir}/scripts/manage-mounts.cjs"
+
+usage() {
+  cat <<'EOF'
+Usage: ./sandbox COMMAND
+
+Commands:
+  build                            Build or rebuild the image
+  up                               Start or apply configuration to the sandbox
+  down                             Stop without deleting persistent volumes
+  restart                          Restart the existing container
+  shell                            Open a local shell as the agent user
+  logs                             Follow container logs
+  status                           Show container, tool, SSH, and Moshi status
+  config                           Show the merged Docker Compose configuration
+  test                             Run the host-side test suite
+  mount list                       List configured bind mounts
+  mount add SOURCE TARGET [--read-only]
+                                   Add a bind mount without applying it
+  mount remove TARGET              Remove a bind mount without applying it
+  versions                         Print installed tool versions
+  authorize-key [KEY]              Add an Ed25519 SSH public key
+  keys                             List authorized SSH key fingerprints
+  host-key                         Print the sandbox SSH host-key fingerprint
+  codex-login                      Authenticate Codex using device authorization
+  claude-login                     Authenticate Claude Code
+  moshi-pair                       Pair Moshi agent hooks
+  moshi-install                    Refresh hooks for both agent CLIs
+EOF
+}
+
+if [[ -n "${AGENT_TOOLBOX_MOUNTS_FILE:-}" ]]; then
+  mounts_file="${AGENT_TOOLBOX_MOUNTS_FILE}"
+elif [[ -f "${managed_mounts_file}" ]]; then
+  mounts_file="${managed_mounts_file}"
+elif [[ -f "${local_mounts_file}" ]]; then
+  mounts_file="${local_mounts_file}"
+else
+  mounts_file="${managed_mounts_file}"
+fi
+
+command_name="${1:-}"
+if [[ -n "${command_name}" ]]; then
+  shift
+fi
+
+case "${command_name}" in
+  help|-h|--help|"")
+    usage
+    exit 0
+    ;;
+  test)
+    exec node --test "${project_dir}"/tests/*.test.cjs
+    ;;
+  mount)
+    mount_action="${1:-list}"
+    if (($# > 0)); then
+      shift
+    fi
+    case "${mount_action}" in
+      list|add|remove)
+        exec node "${mount_tool}" "${mount_action}" "${mounts_file}" "$@"
+        ;;
+      help|-h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        echo "Unknown mount command: ${mount_action}" >&2
+        usage >&2
+        exit 2
+        ;;
+    esac
+    ;;
+esac
 
 if [[ -n "${AGENT_TOOLBOX_ENV_FILE:-}" ]]; then
   env_file="${AGENT_TOOLBOX_ENV_FILE}"
@@ -27,6 +104,12 @@ if [[ ! -f "${env_file}" ]]; then
   exit 1
 fi
 
+if [[ ! -f "${mounts_file}" ]]; then
+  echo "Mount configuration does not exist: ${mounts_file}" >&2
+  echo "Create it with: ./sandbox mount add /absolute/host/path /workspace" >&2
+  exit 1
+fi
+
 compose=(
   docker compose
   --project-directory "${project_dir}"
@@ -34,33 +117,8 @@ compose=(
   --file "${project_dir}/compose.yaml"
 )
 
-usage() {
-  cat <<'EOF'
-Usage: ./sandbox COMMAND
-
-Commands:
-  build                 Build or rebuild the image
-  up                    Start the sandbox
-  down                  Stop the sandbox without deleting persistent volumes
-  restart               Restart the sandbox
-  shell                 Open a local shell as the agent user
-  logs                  Follow container logs
-  status                Show container, tool, SSH, and Moshi status
-  versions              Print Codex, Claude Code, Herdr, and Moshi versions
-  authorize-key [KEY]   Add an Ed25519 SSH public key; reads stdin when omitted
-  keys                  List authorized SSH key fingerprints
-  host-key              Print the sandbox SSH host-key fingerprint
-  codex-login           Authenticate Codex using device authorization
-  claude-login          Authenticate Claude Code
-  moshi-pair            Pair moshi-hook using a token entered without echo
-  moshi-install         Install or refresh hooks for both agent CLIs
-EOF
-}
-
-command_name="${1:-}"
-if [[ -n "${command_name}" ]]; then
-  shift
-fi
+node "${mount_tool}" validate "${mounts_file}"
+compose+=(--file "${mounts_file}")
 
 case "${command_name}" in
   build)
@@ -81,13 +139,17 @@ case "${command_name}" in
   logs)
     exec "${compose[@]}" logs --follow sandbox
     ;;
+  config)
+    exec "${compose[@]}" config
+    ;;
   versions)
     exec "${compose[@]}" exec --user agent sandbox bash -lc \
       'codex --version; claude --version; herdr --version; moshi-hook version'
     ;;
   authorize-key)
     if (($# > 0)); then
-      printf '%s\n' "$*" | "${compose[@]}" exec --no-TTY --user agent sandbox add-authorized-key
+      printf '%s\n' "$*" |
+        "${compose[@]}" exec --no-TTY --user agent sandbox add-authorized-key
     else
       "${compose[@]}" exec --no-TTY --user agent sandbox add-authorized-key
     fi
@@ -133,9 +195,6 @@ case "${command_name}" in
       printf '\nMoshi hook:\n'
       "${compose[@]}" exec --user agent sandbox moshi-hook status || true
     fi
-    ;;
-  help|-h|--help|"")
-    usage
     ;;
   *)
     echo "Unknown command: ${command_name}" >&2

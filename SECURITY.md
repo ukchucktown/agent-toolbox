@@ -3,13 +3,14 @@
 ## Operational model
 
 Agent Toolbox exposes a key-only OpenSSH server from an unprivileged container.
-The configured workspace is mounted read-write, the container has unrestricted
+Configured workspaces may be mounted read-write, the container has unrestricted
 outbound networking, and the `agent` user has passwordless `sudo` inside the
 container.
 
 Treat every mounted file, prompt, dependency, and agent tool as trusted input.
-Do not mount credential directories, SSH configuration, system keychains, or
-the Docker socket.
+Keep the mount list as narrow as possible, use read-only mounts when practical,
+and do not mount credential directories, SSH configuration, system keychains,
+or the Docker socket.
 
 ## Remote access
 

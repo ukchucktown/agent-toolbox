@@ -1,3 +1,4 @@
 .git
 .env
+compose.mounts.yaml
 secrets

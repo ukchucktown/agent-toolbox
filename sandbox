@@ -138,7 +138,7 @@ case "${command_name}" in
     exec "${compose[@]}" restart
     ;;
   shell)
-    exec "${compose[@]}" exec --user agent sandbox bash --login
+    exec "${compose[@]}" exec --user agent sandbox zsh --login
     ;;
   logs)
     exec "${compose[@]}" logs --follow sandbox

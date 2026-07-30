@@ -14,6 +14,11 @@ ARG AGENT_GID=501
 ARG PYTHON_VERSION
 ARG GH_VERSION
 ARG C8CTL_VERSION
+ARG OH_MY_ZSH_VERSION
+ARG POWERLEVEL10K_VERSION
+ARG ZSH_AUTOSUGGESTIONS_VERSION
+ARG ZSH_SYNTAX_HIGHLIGHTING_VERSION
+ARG FZF_TAB_VERSION
 ARG CODEX_VERSION
 ARG CLAUDE_CODE_VERSION
 ARG HERDR_VERSION
@@ -23,6 +28,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV JAVA_HOME=/opt/java/openjdk
 ENV MAVEN_HOME=/usr/share/maven
 ENV UV_PYTHON_INSTALL_DIR=/opt/python
+ENV ZDOTDIR=/etc/agent-shell
 ENV PATH="${JAVA_HOME}/bin:${MAVEN_HOME}/bin:/opt/agent-tools/node_modules/.bin:/usr/local/bin:${PATH}"
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
@@ -66,6 +72,37 @@ RUN apt-get update \
     && ln -sf "${MAVEN_HOME}/bin/mvn" /usr/local/bin/mvn \
     && corepack enable pnpm
 
+RUN install_component() { \
+      destination="$1"; \
+      repository="$2"; \
+      revision="$3"; \
+      git init --quiet "${destination}"; \
+      git -C "${destination}" remote add origin "${repository}"; \
+      git -C "${destination}" fetch --quiet --depth=1 origin "${revision}"; \
+      git -C "${destination}" checkout --quiet --detach FETCH_HEAD; \
+      rm -rf "${destination}/.git"; \
+    }; \
+    install_component \
+      /opt/oh-my-zsh \
+      https://github.com/ohmyzsh/ohmyzsh.git \
+      "${OH_MY_ZSH_VERSION}"; \
+    install_component \
+      /opt/oh-my-zsh/custom/themes/powerlevel10k \
+      https://github.com/romkatv/powerlevel10k.git \
+      "${POWERLEVEL10K_VERSION}"; \
+    install_component \
+      /opt/oh-my-zsh/custom/plugins/zsh-autosuggestions \
+      https://github.com/zsh-users/zsh-autosuggestions.git \
+      "${ZSH_AUTOSUGGESTIONS_VERSION}"; \
+    install_component \
+      /opt/oh-my-zsh/custom/plugins/zsh-syntax-highlighting \
+      https://github.com/zsh-users/zsh-syntax-highlighting.git \
+      "${ZSH_SYNTAX_HIGHLIGHTING_VERSION}"; \
+    install_component \
+      /opt/oh-my-zsh/custom/plugins/fzf-tab \
+      https://github.com/Aloxaf/fzf-tab.git \
+      "${FZF_TAB_VERSION}"
+
 RUN UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR}" \
       XDG_BIN_HOME=/usr/local/bin \
       uv python install --default "${PYTHON_VERSION}"
@@ -92,7 +129,7 @@ RUN case "${TARGETARCH}" in \
     && rm "/tmp/${gh_archive}" /tmp/gh-checksums.txt
 
 RUN groupadd --gid "${AGENT_GID}" agent \
-    && useradd --uid "${AGENT_UID}" --gid "${AGENT_GID}" --create-home --shell /bin/bash agent \
+    && useradd --uid "${AGENT_UID}" --gid "${AGENT_GID}" --create-home --shell /usr/bin/zsh agent \
     && usermod --password NP agent \
     && printf '%s\n' 'agent ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/agent \
     && chmod 0440 /etc/sudoers.d/agent \
@@ -138,12 +175,15 @@ COPY entrypoint.sh /usr/local/bin/agent-sandbox-entrypoint
 COPY scripts/add-authorized-key.cjs /usr/local/bin/add-authorized-key
 COPY scripts/camunda-host.cjs /usr/local/bin/camunda-host
 COPY scripts/profile.sh /etc/profile.d/agent-sandbox.sh
+COPY shell/zshrc /etc/agent-shell/.zshrc
+COPY shell/tmux.conf /etc/tmux.conf
 
 RUN chmod 0755 \
       /usr/local/bin/agent-sandbox-entrypoint \
       /usr/local/bin/add-authorized-key \
       /usr/local/bin/camunda-host \
       /etc/profile.d/agent-sandbox.sh \
+    && chmod 0644 /etc/agent-shell/.zshrc /etc/tmux.conf \
     && install -d -m 0755 /run/sshd /etc/ssh/host_keys
 
 WORKDIR /workspace

@@ -1,0 +1,25 @@
+# Agent Toolbox's Zsh entry point. A trusted read-only configuration mounted at
+# /opt/agent-shell/zshrc can replace the default interactive setup.
+
+export JAVA_HOME="/opt/java/openjdk"
+export MAVEN_HOME="/usr/share/maven"
+export PATH="${JAVA_HOME}/bin:${MAVEN_HOME}/bin:/opt/agent-tools/node_modules/.bin:/usr/local/bin:${HOME}/.local/bin:${PATH}"
+export ZSH="/opt/oh-my-zsh"
+export ZSH_CUSTOM="${ZSH}/custom"
+
+HISTFILE="${HOME}/.zsh_history"
+HISTSIZE=50000
+SAVEHIST=50000
+setopt append_history
+setopt share_history
+setopt hist_ignore_all_dups
+setopt hist_reduce_blanks
+
+if [[ -r /opt/agent-shell/zshrc ]]; then
+  source /opt/agent-shell/zshrc
+else
+  ZSH_THEME="powerlevel10k/powerlevel10k"
+  plugins=(git)
+  source "${ZSH}/oh-my-zsh.sh"
+  source "${ZSH_CUSTOM}/themes/powerlevel10k/config/p10k-lean.zsh"
+fi

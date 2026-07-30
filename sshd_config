@@ -34,6 +34,7 @@ ClientAliveCountMax 3
 TCPKeepAlive yes
 
 AcceptEnv LANG LC_*
+SetEnv ZDOTDIR=/etc/agent-shell COLORTERM=truecolor
 PrintMotd no
 PrintLastLog yes
 LogLevel VERBOSE

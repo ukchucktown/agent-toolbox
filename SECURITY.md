@@ -12,6 +12,11 @@ Keep the mount list as narrow as possible, use read-only mounts when practical,
 and do not mount credential directories, SSH configuration, system keychains,
 or the Docker socket.
 
+An optional `/opt/agent-shell` mount is sourced as executable shell and tmux
+configuration. Keep it private, mount it read-only, and include only settings
+that the container may execute and expose to agent processes. Do not place
+tokens, cloud profiles, private keys, or other credentials in that directory.
+
 The optional host Camunda integration creates a c8ctl profile in the
 container's persistent home volume. It does not mount the Docker socket or give
 the sandbox cluster lifecycle control. Disabling the profile removes the

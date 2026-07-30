@@ -28,6 +28,29 @@ Runtime version lines and independently downloaded tool releases are pinned in
 the selected environment file so upgrades remain deliberate. Run
 `./sandbox versions` to inspect the installed versions.
 
+### Match your local shell
+
+Zsh is the default shell for local container terminals, SSH connections, and
+tmux. The image includes Oh My Zsh, Powerlevel10k, fzf-tab, autosuggestions,
+and syntax highlighting.
+
+To keep personal shell settings outside this public repository, create a
+dedicated directory containing a `zshrc` file and, optionally, `tmux.conf` and
+other files sourced by that configuration. Mount only that directory:
+
+```bash
+./sandbox mount add /absolute/path/to/agent-shell /opt/agent-shell --read-only
+./sandbox config
+./sandbox up
+```
+
+When present, `/opt/agent-shell/zshrc` replaces the built-in interactive Zsh
+setup and `/opt/agent-shell/tmux.conf` extends the built-in tmux configuration.
+These files execute inside every interactive session, so keep the directory
+private, exclude secrets, and mount it read-only. Fonts, window chrome, and the
+terminal color theme remain controlled by the host terminal emulator, such as
+Ghostty on macOS, and by the mobile terminal on a phone.
+
 ## Camunda 8 development support
 
 The container has the toolchain needed for Camunda 8 development:
@@ -326,6 +349,14 @@ herdr
 Start `codex` or `claude` in Herdr tabs. The primary project mount is normally
 available below `/workspace`; additional directories appear at their configured
 container targets.
+
+For a conventional shared terminal instead, use tmux:
+
+```bash
+tmux new -As agent
+```
+
+Run the same command from Ghostty or the phone to attach to that session.
 
 ## Reach it away from home
 

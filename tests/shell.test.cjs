@@ -23,6 +23,7 @@ test("uses Zsh for SSH, local shells, and tmux", () => {
   assert.match(dockerfile, /--shell \/usr\/bin\/zsh agent/);
   assert.match(launcher, /sandbox zsh --login/);
   assert.match(sshd, /SetEnv ZDOTDIR=\/etc\/agent-shell COLORTERM=truecolor/);
+  assert.match(zshrc, /export SHELL="\/usr\/bin\/zsh"/);
   assert.match(tmux, /default-shell \/usr\/bin\/zsh/);
 });
 

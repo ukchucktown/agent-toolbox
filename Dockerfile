@@ -13,6 +13,9 @@ ARG AGENT_UID=501
 ARG AGENT_GID=501
 ARG PYTHON_VERSION
 ARG GH_VERSION
+ARG NEOVIM_VERSION
+ARG NEOVIM_SHA256_AMD64
+ARG NEOVIM_SHA256_ARM64
 ARG C8CTL_VERSION
 ARG OH_MY_ZSH_VERSION
 ARG POWERLEVEL10K_VERSION
@@ -127,6 +130,24 @@ RUN case "${TARGETARCH}" in \
       --directory /usr/local/bin \
       "gh_${GH_VERSION}_linux_${gh_arch}/bin/gh" \
     && rm "/tmp/${gh_archive}" /tmp/gh-checksums.txt
+
+RUN case "${TARGETARCH}" in \
+      amd64) neovim_arch="x86_64"; neovim_sha256="${NEOVIM_SHA256_AMD64}" ;; \
+      arm64) neovim_arch="arm64"; neovim_sha256="${NEOVIM_SHA256_ARM64}" ;; \
+      *) echo "unsupported Docker architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && neovim_archive="nvim-linux-${neovim_arch}.tar.gz" \
+    && curl --fail --silent --show-error --location \
+      "https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/${neovim_archive}" \
+      --output "/tmp/${neovim_archive}" \
+    && printf '%s  %s\n' "${neovim_sha256}" "/tmp/${neovim_archive}" \
+      | sha256sum --check --strict - \
+    && tar --extract --gzip \
+      --file "/tmp/${neovim_archive}" \
+      --directory /opt \
+    && mv "/opt/nvim-linux-${neovim_arch}" /opt/nvim \
+    && ln -s /opt/nvim/bin/nvim /usr/local/bin/nvim \
+    && rm "/tmp/${neovim_archive}"
 
 RUN groupadd --gid "${AGENT_GID}" agent \
     && useradd --uid "${AGENT_UID}" --gid "${AGENT_GID}" --create-home --shell /usr/bin/zsh agent \

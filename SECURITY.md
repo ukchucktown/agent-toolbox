@@ -12,6 +12,13 @@ Keep the mount list as narrow as possible, use read-only mounts when practical,
 and do not mount credential directories, SSH configuration, system keychains,
 or the Docker socket.
 
+The optional host Camunda integration creates a c8ctl profile in the
+container's persistent home volume. It does not mount the Docker socket or give
+the sandbox cluster lifecycle control. Disabling the profile removes the
+convenience configuration, but it is not a firewall: the container has
+unrestricted outbound networking and may still reach services that Docker
+Desktop or the LAN exposes.
+
 ## Remote access
 
 Prefer a private VPN or hardened bastion over direct Internet exposure. If a
@@ -29,9 +36,10 @@ be enabled deliberately.
 
 ## Credentials and backups
 
-Do not commit agent login state, Moshi pairing tokens, SSH private keys, or
-Docker volume exports. Reauthenticate after rebuilding, or store encrypted
-volume backups outside the repository.
+Do not commit agent login state, GitHub tokens, Moshi pairing tokens, SSH
+private keys, c8ctl profiles containing credentials, or Docker volume exports.
+Reauthenticate after rebuilding, or store encrypted volume backups outside the
+repository.
 
 ## Reporting a vulnerability
 

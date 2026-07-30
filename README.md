@@ -125,6 +125,20 @@ To initialize a mount file without the helper, copy
 ./sandbox status
 ```
 
+The image includes the following development toolchain by default:
+
+- Node.js 22 with Corepack and pnpm support
+- Python 3.14 with uv
+- Eclipse Temurin Java 25 and Maven 3.9
+- GitHub CLI and Git LFS
+- Camunda c8ctl, including its BPMN, element-template, and FEEL commands
+- Codex CLI, Claude Code, Herdr, and Moshi agent hooks
+- Common shell tools including `fzf`, `tree`, `bat`, `fd`, `rg`, `jq`,
+  `tmux`, and Zsh
+
+Runtime version lines and independently downloaded tool releases are pinned in
+the selected environment file so upgrades remain deliberate.
+
 The SSH endpoint uses:
 
 ```text
@@ -187,6 +201,67 @@ Check all installed tools:
 ```bash
 ./sandbox versions
 ```
+
+Authenticate GitHub CLI separately:
+
+```bash
+./sandbox gh-login
+```
+
+This uses the browser flow and configures Git to use GitHub CLI credentials
+over HTTPS. The login persists in the `agent-home` volume. It does not copy the
+host's SSH keys or GitHub configuration into the container.
+
+## Connect to a host Camunda cluster
+
+The sandbox can opt in to a Camunda cluster that is already running on the
+Docker host. The host remains responsible for `c8run`, cluster startup,
+shutdown, logs, and upgrades. The sandbox receives no Docker socket.
+
+Start the local cluster on the host first, then enable the connection:
+
+```bash
+./sandbox camunda enable-host
+./sandbox camunda status
+```
+
+The helper verifies the topology before creating a c8ctl profile named
+`host-local`. It points to
+`http://host.docker.internal:8080/v2` by default. For a different local base
+URL, pass the origin without `/v2`:
+
+```bash
+./sandbox camunda enable-host http://host.docker.internal:8090
+```
+
+Inside the sandbox, make the profile explicit on every c8ctl command:
+
+```bash
+c8ctl get topology --profile=host-local
+c8ctl deploy process.bpmn --profile=host-local
+```
+
+The helper never changes c8ctl's globally selected profile. Disable this
+integration by removing only the managed profile:
+
+```bash
+./sandbox camunda disable-host
+```
+
+For a Java worker that should connect directly to the same host cluster, set
+these values only for that worker process:
+
+```bash
+export CAMUNDA_CLIENT_MODE=self-managed
+export CAMUNDA_CLIENT_RESTADDRESS=http://host.docker.internal:8080
+export CAMUNDA_CLIENT_GRPCADDRESS=http://host.docker.internal:26500
+```
+
+This is a logical opt-in, not a network firewall. The container has normal
+outbound networking and can reach host services that Docker Desktop exposes.
+The helper makes the intended Camunda connection explicit and reversible.
+Workflows that require Docker, such as starting `c8run` or running
+Docker-backed ProcessOS test environments, should remain on the host or CI.
 
 ## Pair Moshi agent hooks
 
@@ -253,6 +328,8 @@ not needed.
 ./sandbox config         Show the merged Compose configuration
 ./sandbox mount list     Show configured bind mounts
 ./sandbox logs           Follow logs
+./sandbox gh-login       Authenticate GitHub CLI
+./sandbox camunda status Check the opt-in host cluster connection
 ./sandbox moshi-install  Refresh hooks after an agent upgrade
 ```
 
@@ -266,6 +343,9 @@ version and then rebuild:
 ./sandbox up
 ./sandbox moshi-install
 ```
+
+When upgrading an older checkout, copy any newly introduced version variables
+from `.env.example` into your selected environment file before building.
 
 Do not run `docker compose down --volumes` unless you intend to delete the
 persisted Codex login, Claude login, Herdr state, Moshi pairing, and SSH host

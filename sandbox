@@ -24,6 +24,9 @@ Commands:
   status                           Show container, tool, SSH, and Moshi status
   config                           Show the merged Docker Compose configuration
   test                             Run the host-side test suite
+  camunda enable-host [BASE_URL]   Add the explicit host-local c8ctl profile
+  camunda status                   Check the opt-in host cluster connection
+  camunda disable-host             Remove the host-local c8ctl profile
   mount list                       List configured bind mounts
   mount add SOURCE TARGET [--read-only]
                                    Add a bind mount without applying it
@@ -34,6 +37,7 @@ Commands:
   host-key                         Print the sandbox SSH host-key fingerprint
   codex-login                      Authenticate Codex using device authorization
   claude-login                     Authenticate Claude Code
+  gh-login                         Authenticate GitHub CLI over HTTPS
   moshi-pair                       Pair Moshi agent hooks
   moshi-install                    Refresh hooks for both agent CLIs
 EOF
@@ -142,9 +146,26 @@ case "${command_name}" in
   config)
     exec "${compose[@]}" config
     ;;
+  camunda)
+    camunda_action="${1:-status}"
+    if (($# > 0)); then
+      shift
+    fi
+    case "${camunda_action}" in
+      enable-host|status|disable-host)
+        exec "${compose[@]}" exec --user agent sandbox \
+          camunda-host "${camunda_action}" "$@"
+        ;;
+      *)
+        echo "Unknown Camunda command: ${camunda_action}" >&2
+        usage >&2
+        exit 2
+        ;;
+    esac
+    ;;
   versions)
     exec "${compose[@]}" exec --user agent sandbox bash -lc \
-      'codex --version; claude --version; herdr --version; moshi-hook version'
+      'node --version; python --version; uv --version; java --version; mvn --version; gh --version | head -1; c8ctl --version; codex --version; claude --version; herdr --version; moshi-hook version'
     ;;
   authorize-key)
     if (($# > 0)); then
@@ -168,6 +189,11 @@ case "${command_name}" in
   claude-login)
     exec "${compose[@]}" exec --user agent sandbox claude auth login
     ;;
+  gh-login)
+    "${compose[@]}" exec --user agent sandbox \
+      gh auth login --web --git-protocol https
+    "${compose[@]}" exec --user agent sandbox gh auth setup-git
+    ;;
   moshi-pair)
     read -r -s -p "Moshi Agent Hooks token: " moshi_token
     printf '\n'
@@ -188,7 +214,7 @@ case "${command_name}" in
     if "${compose[@]}" ps --status running --quiet sandbox | grep -q .; then
       printf '\nTool versions:\n'
       "${compose[@]}" exec --user agent sandbox bash -lc \
-        'codex --version; claude --version; herdr --version; moshi-hook version'
+        'node --version; python --version; java --version; mvn --version | head -1; gh --version | head -1; c8ctl --version; codex --version; claude --version; herdr --version; moshi-hook version'
       printf '\nSSH configuration:\n'
       "${compose[@]}" exec sandbox /usr/sbin/sshd -t
       echo "valid"

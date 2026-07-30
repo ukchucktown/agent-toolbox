@@ -8,6 +8,42 @@ set of host directories at explicit paths inside the container.
 The Docker runtime retains the `agent-sandbox` name so existing installations
 can upgrade without creating new containers or volumes.
 
+## Container toolchain
+
+Agent Toolbox is a ready-to-use development environment, not just an SSH
+server. The image includes:
+
+| Area | Included tools |
+| --- | --- |
+| Agent workflow | Codex CLI, Claude Code, Herdr, and Moshi agent hooks |
+| JavaScript | Node.js 22, npm, Corepack, and pnpm support |
+| Python | Python 3.14 and uv |
+| Java | Eclipse Temurin Java 25 and Maven 3.9 |
+| Camunda 8 | `c8`, `c8ctl`, and the BPMN, element-template, and FEEL commands |
+| GitHub | Git, Git LFS, and GitHub CLI (`gh`) |
+| Shell | Bash, Zsh, tmux, `fzf`, `tree`, `bat`, `fd`, `rg`, and `jq` |
+| Native builds | GCC, G++, Make, and other standard build tools |
+
+Runtime version lines and independently downloaded tool releases are pinned in
+the selected environment file so upgrades remain deliberate. Run
+`./sandbox versions` to inspect the installed versions.
+
+## Camunda 8 and ProcessOS support
+
+The container has the toolchain needed for Camunda 8 and ProcessOS development:
+
+- `c8` and `c8ctl` are equivalent entry points to the pinned Camunda CLI.
+- Java 25 and Maven support Java clients, connectors, and job workers.
+- Node.js, Python, and uv support ProcessOS scripts and evaluation tooling.
+- A mounted ProcessOS checkout can be used directly from an agent session.
+- An opt-in `host-local` profile lets c8ctl and application clients reach a
+  Camunda 8 cluster running on the Docker host.
+
+The host retains cluster lifecycle control. Agent Toolbox does not include
+`c8run`, mount the Docker socket, or allow the container to manage Docker.
+See [Connect to a host Camunda 8 cluster](#connect-to-a-host-camunda-8-cluster)
+for the setup and security boundary.
+
 ## Security boundary
 
 The container can read, modify, and delete everything in each read-write bind
@@ -125,20 +161,6 @@ To initialize a mount file without the helper, copy
 ./sandbox status
 ```
 
-The image includes the following development toolchain by default:
-
-- Node.js 22 with Corepack and pnpm support
-- Python 3.14 with uv
-- Eclipse Temurin Java 25 and Maven 3.9
-- GitHub CLI and Git LFS
-- Camunda c8ctl, including its BPMN, element-template, and FEEL commands
-- Codex CLI, Claude Code, Herdr, and Moshi agent hooks
-- Common shell tools including `fzf`, `tree`, `bat`, `fd`, `rg`, `jq`,
-  `tmux`, and Zsh
-
-Runtime version lines and independently downloaded tool releases are pinned in
-the selected environment file so upgrades remain deliberate.
-
 The SSH endpoint uses:
 
 ```text
@@ -212,10 +234,12 @@ This uses the browser flow and configures Git to use GitHub CLI credentials
 over HTTPS. The login persists in the `agent-home` volume. It does not copy the
 host's SSH keys or GitHub configuration into the container.
 
-## Connect to a host Camunda cluster
+## Connect to a host Camunda 8 cluster
 
-The sandbox can opt in to a Camunda cluster that is already running on the
-Docker host. The host remains responsible for `c8run`, cluster startup,
+The sandbox can opt in to a Camunda 8 cluster that is already running on the
+Docker host. This is useful when an agent needs to deploy or inspect Camunda
+resources, run a Java worker, or work with ProcessOS while keeping the cluster
+outside the sandbox. The host remains responsible for `c8run`, cluster startup,
 shutdown, logs, and upgrades. The sandbox receives no Docker socket.
 
 Start the local cluster on the host first, then enable the connection:
@@ -241,6 +265,12 @@ c8ctl get topology --profile=host-local
 c8ctl deploy process.bpmn --profile=host-local
 ```
 
+The shorter `c8` command is also available:
+
+```bash
+c8 get topology --profile=host-local
+```
+
 The helper never changes c8ctl's globally selected profile. Disable this
 integration by removing only the managed profile:
 
@@ -262,6 +292,8 @@ outbound networking and can reach host services that Docker Desktop exposes.
 The helper makes the intended Camunda connection explicit and reversible.
 Workflows that require Docker, such as starting `c8run` or running
 Docker-backed ProcessOS test environments, should remain on the host or CI.
+Ordinary ProcessOS authoring, CLI operations, Java builds, and agent workflows
+can run inside the sandbox against mounted projects.
 
 ## Pair Moshi agent hooks
 

@@ -67,8 +67,8 @@ function normalizeSource(source, requireExisting) {
     fail(`Host source does not exist: ${source}`);
   }
 
-  if (!stat.isDirectory()) {
-    fail(`Host source must be a directory: ${source}`);
+  if (!stat.isDirectory() && !stat.isFile()) {
+    fail(`Host source must be a regular file or directory: ${source}`);
   }
 
   return fs.realpathSync(source);

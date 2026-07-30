@@ -9,8 +9,8 @@ container.
 
 Treat every mounted file, prompt, dependency, and agent tool as trusted input.
 Keep the mount list as narrow as possible, use read-only mounts when practical,
-and do not mount credential directories, SSH configuration, system keychains,
-or the Docker socket.
+and do not mount credential files or directories, SSH configuration, system
+keychains, or the Docker socket.
 
 An optional `/opt/agent-shell` mount is sourced as executable shell and tmux
 configuration. Keep it private, mount it read-only, and include only settings

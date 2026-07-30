@@ -84,6 +84,36 @@ test("supports read-only mounts and rejects duplicate targets", () => {
   });
 });
 
+test("supports read-only regular-file mounts", () => {
+  withWorkspace(({ config, directory, source }) => {
+    const shellConfig = path.join(directory, "p10k.zsh");
+    fs.writeFileSync(shellConfig, "# private prompt configuration\n");
+
+    const primary = run("add", config, source, "/workspace");
+    assert.equal(primary.status, 0, primary.stderr);
+
+    const addFile = run(
+      "add",
+      config,
+      shellConfig,
+      "/opt/agent-p10k.zsh",
+      "--read-only",
+    );
+    assert.equal(addFile.status, 0, addFile.stderr);
+
+    const parsed = JSON.parse(fs.readFileSync(config, "utf8"));
+    assert.deepEqual(parsed.services.sandbox.volumes[1], {
+      type: "bind",
+      source: fs.realpathSync(shellConfig),
+      target: "/opt/agent-p10k.zsh",
+      read_only: true,
+      bind: {
+        create_host_path: false,
+      },
+    });
+  });
+});
+
 test("rejects missing sources and reserved container targets", () => {
   withWorkspace(({ config, directory, source }) => {
     const missing = run(

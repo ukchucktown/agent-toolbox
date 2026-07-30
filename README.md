@@ -2,8 +2,8 @@
 
 A container-scoped remote development host for
 [Moshi](https://getmoshi.app/), [Herdr](https://herdr.dev/), Codex CLI, and
-Claude Code. The container exposes a key-only SSH endpoint and mounts a chosen
-set of host directories at explicit paths inside the container.
+Claude Code. The container exposes a key-only SSH endpoint and mounts chosen
+host files and directories at explicit paths inside the container.
 
 The Docker runtime retains the `agent-sandbox` name so existing installations
 can upgrade without creating new containers or volumes.
@@ -70,8 +70,8 @@ for the setup and security boundary.
 ## Security boundary
 
 The container can read, modify, and delete everything in each read-write bind
-mount. Mount only directories whose entire contents may be accessed by the
-agents, and prefer read-only mounts when modification is unnecessary.
+mount. Mount only files and directories that may be accessed by the agents, and
+prefer read-only mounts when modification is unnecessary.
 
 The container does not mount the rest of the host home directory, host SSH
 configuration, system credential stores, or the Docker socket, and it is not
@@ -92,7 +92,7 @@ making the SSH endpoint reachable outside the host.
 
 - Docker Desktop or Docker Engine with Compose
 - Bash
-- One or more host directories to mount
+- One or more host files or directories to mount
 - Moshi on a mobile device, if remote terminal access is desired
 
 ## Configure
@@ -147,15 +147,18 @@ Then use the launcher instead of editing the file:
 # Add a read-only directory.
 ./sandbox mount add /absolute/host/docs /mounts/docs --read-only
 
+# Add a read-only configuration file.
+./sandbox mount add /absolute/host/prompt.zsh /opt/prompt.zsh --read-only
+
 # Remove a mount by its container target.
 ./sandbox mount remove /mounts/docs
 ```
 
-Host sources must already exist. Container targets must be absolute and cannot
-overlap the persistent `/home/agent` or `/etc/ssh/host_keys` mounts. The script
-also sets `create_host_path: false`, preventing a mistyped host path from being
-silently created as an empty directory. At least one mount must remain
-configured.
+Host sources must already exist and must be regular files or directories.
+Container targets must be absolute and cannot overlap the persistent
+`/home/agent` or `/etc/ssh/host_keys` mounts. The script also sets
+`create_host_path: false`, preventing a mistyped host path from being silently
+created as an empty directory. At least one mount must remain configured.
 
 Mount commands change configuration only. Review and apply the result
 explicitly:

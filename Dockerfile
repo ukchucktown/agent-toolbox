@@ -69,6 +69,7 @@ RUN apt-get update \
         iproute2 \
         jq \
         less \
+        mosh \
         nano \
         netcat-openbsd \
         openssh-client \
@@ -222,6 +223,6 @@ RUN chmod 0755 \
 
 WORKDIR /workspace
 
-EXPOSE 22/tcp
+EXPOSE 22/tcp 60000-60010/udp
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/agent-sandbox-entrypoint"]

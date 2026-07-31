@@ -29,6 +29,7 @@ test("builds the development toolchain into the sandbox image", () => {
     "cargo install",
     "--no-default-features",
     "tree-sitter-cli",
+    "mosh",
     "corepack enable pnpm",
     "nvim-linux-${neovim_arch}.tar.gz",
     "sha256sum --check --strict",
@@ -38,6 +39,12 @@ test("builds the development toolchain into the sandbox image", () => {
   ]) {
     assert.match(dockerfile, new RegExp(escapeRegex(expected)));
   }
+});
+
+test("publishes a configurable Mosh UDP range", () => {
+  assert.match(dockerfile, /EXPOSE 22\/tcp 60000-60010\/udp/);
+  assert.match(compose, /MOSH_UDP_PORT_RANGE:-60000-60010/);
+  assert.match(compose, /\/udp/);
 });
 
 test("does not grant the sandbox Docker daemon access", () => {

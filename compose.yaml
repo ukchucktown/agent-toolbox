@@ -32,6 +32,7 @@ services:
     restart: unless-stopped
     ports:
       - "${SSH_BIND_ADDRESS:-0.0.0.0}:${SSH_PORT:-49222}:22/tcp"
+      - "${SSH_BIND_ADDRESS:-0.0.0.0}:${MOSH_UDP_PORT_RANGE:-60000-60010}:${MOSH_UDP_PORT_RANGE:-60000-60010}/udp"
     volumes:
       - type: volume
         source: agent-home

@@ -15,7 +15,7 @@ server. The image includes:
 
 | Area | Included tools |
 | --- | --- |
-| Agent workflow | Codex CLI, Claude Code, Herdr, and Moshi agent hooks |
+| Agent workflow | Codex CLI, Claude Code, Herdr, Mosh, and Moshi agent hooks |
 | JavaScript | Node.js 22, npm, Corepack, and pnpm support |
 | Python | Python 3.14 and uv |
 | Java | Eclipse Temurin Java 25 and Maven 3.9 |
@@ -116,9 +116,11 @@ For a Stow-managed setup, store the file in the dotfiles tree at:
 .config/agent-toolbox/agent-sandbox.env
 ```
 
-The example binds SSH to `127.0.0.1` for a safe local-only default. To connect
-from another device on the LAN, deliberately change `SSH_BIND_ADDRESS` to
-`0.0.0.0` after configuring key authentication.
+The example binds SSH and Mosh to `127.0.0.1` for a safe local-only default. To
+connect from another device on the LAN, deliberately change
+`SSH_BIND_ADDRESS` to `0.0.0.0` after configuring key authentication. The
+`MOSH_UDP_PORT_RANGE` setting controls the UDP ports published for Mosh; use
+the same range in Moshi's connection settings.
 
 ### Manage mounts
 
@@ -188,13 +190,14 @@ To initialize a mount file without the helper, copy
 ./sandbox status
 ```
 
-The SSH endpoint uses:
+The connection uses SSH for authentication and Mosh for the live terminal:
 
 ```text
 Host: <host-lan-ip>
 Port: <configured SSH_PORT, default 49222>
 User: agent
-Transport: SSH
+Transport: Mosh
+Mosh UDP range: <configured MOSH_UDP_PORT_RANGE, default 60000-60010>
 ```
 
 The container accepts public-key authentication only. No login password is set.
@@ -217,11 +220,14 @@ flow instead of Easy Pair:
    On another platform, pass or pipe the public key to
    `./sandbox authorize-key`.
 
-4. Add a Moshi connection using the host's LAN address and configured port.
+4. Add a Moshi connection using the host's LAN address and configured SSH
+   port. Select **Mosh** and set its custom UDP range to the configured
+   `MOSH_UDP_PORT_RANGE` value.
 5. Compare Moshi's first-connect SSH fingerprint with `./sandbox host-key`.
 
-Use SSH transport in Moshi. Herdr keeps processes alive when the SSH connection
-drops, so a Mosh UDP port range does not need to be exposed.
+SSH remains available as a fallback if the current network blocks UDP. Mosh
+survives phone sleep, app suspension, and network changes; Herdr separately
+keeps the shell and agent process alive if the Mosh session itself ends.
 
 ## Authenticate the agents
 
@@ -365,19 +371,25 @@ Run the same command from Ghostty or the phone to attach to that session.
 ## Reach it away from home
 
 A private VPN or a hardened bastion is preferred. If direct router forwarding
-is the only available option, reserve the host's LAN address and forward only
-the configured TCP port:
+is the only available option, reserve the host's LAN address and forward the
+configured SSH port plus the configured Mosh UDP range:
 
 ```text
 External/global port: <SSH_PORT>
 Destination device:   <host-lan-ip>
 Base/internal port:   <SSH_PORT>
 Protocol:             TCP
+
+External port range:  <MOSH_UDP_PORT_RANGE>
+Destination device:   <host-lan-ip>
+Internal port range:  <MOSH_UDP_PORT_RANGE>
+Protocol:             UDP
 ```
 
 Use the public IPv4 address or a DDNS hostname in Moshi. Keep the configured
-port, user `agent`, key authentication, and SSH transport, then test over a
-cellular connection.
+SSH port, user `agent`, key authentication, Mosh transport, and custom UDP
+range, then test over a cellular connection. Forwarding is unnecessary when
+the phone reaches the host through a VPN such as Tailscale.
 
 A high port reduces scanner noise but is not a security boundary. Use a
 dedicated Moshi key, verify the SSH host fingerprint, protect the phone with a

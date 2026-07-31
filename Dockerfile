@@ -3,9 +3,21 @@
 ARG UV_VERSION
 ARG JAVA_VERSION
 ARG MAVEN_VERSION
+ARG TREE_SITTER_CLI_VERSION
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv-toolchain
 FROM maven:${MAVEN_VERSION}-eclipse-temurin-${JAVA_VERSION} AS java-toolchain
+FROM rust:1.88-bookworm AS tree-sitter-toolchain
+
+ARG TREE_SITTER_CLI_VERSION
+
+RUN cargo install \
+      --locked \
+      --no-default-features \
+      --root /opt/tree-sitter \
+      --version "${TREE_SITTER_CLI_VERSION}" \
+      tree-sitter-cli
+
 FROM node:22-bookworm-slim
 
 ARG TARGETARCH
@@ -40,6 +52,7 @@ ENV TERM=xterm-256color
 COPY --from=uv-toolchain /uv /uvx /usr/local/bin/
 COPY --from=java-toolchain /opt/java/openjdk /opt/java/openjdk
 COPY --from=java-toolchain /usr/share/maven /usr/share/maven
+COPY --from=tree-sitter-toolchain /opt/tree-sitter/bin/tree-sitter /usr/local/bin/tree-sitter
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

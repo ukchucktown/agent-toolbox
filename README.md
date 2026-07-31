@@ -21,7 +21,7 @@ server. The image includes:
 | Java | Eclipse Temurin Java 25 and Maven 3.9 |
 | Camunda 8 | `c8`, `c8ctl`, and the BPMN, element-template, and FEEL commands |
 | GitHub | Git, Git LFS, and GitHub CLI (`gh`) |
-| Editors | Neovim 0.12 with built-in `vim.pack`, Vim, and Nano |
+| Editors | Neovim 0.12 with built-in `vim.pack`, Tree-sitter CLI, Vim, and Nano |
 | Shell | Bash, Zsh, tmux, `fzf`, `tree`, `bat`, `fd`, `rg`, and `jq` |
 | Native builds | GCC, G++, Make, and other standard build tools |
 

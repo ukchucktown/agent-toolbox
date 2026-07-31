@@ -165,7 +165,7 @@ case "${command_name}" in
     ;;
   versions)
     exec "${compose[@]}" exec --user agent sandbox bash -lc \
-      'node --version; python --version; uv --version; java --version; mvn --version; gh --version | head -1; nvim --version | head -1; c8ctl --version; codex --version; claude --version; herdr --version; moshi-hook version'
+      'node --version; python --version; uv --version; java --version; mvn --version; gh --version | head -1; nvim --version | head -1; tree-sitter --version; c8ctl --version; codex --version; claude --version; herdr --version; moshi-hook version'
     ;;
   authorize-key)
     if (($# > 0)); then
@@ -214,7 +214,7 @@ case "${command_name}" in
     if "${compose[@]}" ps --status running --quiet sandbox | grep -q .; then
       printf '\nTool versions:\n'
       "${compose[@]}" exec --user agent sandbox bash -lc \
-        'node --version; python --version; java --version; mvn --version | head -1; gh --version | head -1; nvim --version | head -1; c8ctl --version; codex --version; claude --version; herdr --version; moshi-hook version'
+        'node --version; python --version; java --version; mvn --version | head -1; gh --version | head -1; nvim --version | head -1; tree-sitter --version; c8ctl --version; codex --version; claude --version; herdr --version; moshi-hook version'
       printf '\nSSH configuration:\n'
       "${compose[@]}" exec sandbox /usr/sbin/sshd -t
       echo "valid"

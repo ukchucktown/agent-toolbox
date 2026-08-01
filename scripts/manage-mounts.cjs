@@ -5,6 +5,12 @@ const path = require("node:path");
 
 const [, , command, configPath, ...args] = process.argv;
 
+const protectedSkillTargets = new Set([
+  "/home/agent/.agents/skills",
+  "/home/agent/.codex/skills",
+  "/home/agent/.claude/skills",
+]);
+
 function usage() {
   console.error(`Usage:
   manage-mounts.cjs list CONFIG
@@ -40,15 +46,22 @@ function normalizeTarget(target) {
   }
 
   if (
-    reservedTargets.some(
-      (reserved) =>
-        normalized === reserved || normalized.startsWith(`${reserved}/`),
-    )
+    reservedTargets.some((reserved) => {
+      const isReserved =
+        normalized === reserved || normalized.startsWith(`${reserved}/`);
+      return isReserved && !protectedSkillTargets.has(normalized);
+    })
   ) {
     fail(`Container target is reserved for persistent sandbox state: ${normalized}`);
   }
 
   return normalized;
+}
+
+function validateTargetAccess(target, readOnly) {
+  if (protectedSkillTargets.has(target) && readOnly !== true) {
+    fail(`Global skill target must be read-only: ${target}`);
+  }
 }
 
 function normalizeSource(source, requireExisting) {
@@ -109,6 +122,7 @@ function validateConfig(config, allowEmpty = false) {
     ) {
       fail(`Mount ${index + 1} read_only must be true or false.`);
     }
+    validateTargetAccess(target, mount.read_only);
     if (mount.bind?.create_host_path !== false) {
       fail(`Mount ${index + 1} must set bind.create_host_path to false.`);
     }
@@ -193,6 +207,8 @@ function addMount(filePath, commandArgs) {
   const volumes = validateConfig(config, true);
   const normalizedSource = normalizeSource(source, true);
   const normalizedTarget = normalizeTarget(target);
+  const readOnly = options.includes("--read-only");
+  validateTargetAccess(normalizedTarget, readOnly);
 
   if (volumes.some((mount) => mount.target === normalizedTarget)) {
     fail(
@@ -204,7 +220,7 @@ function addMount(filePath, commandArgs) {
     type: "bind",
     source: normalizedSource,
     target: normalizedTarget,
-    read_only: options.includes("--read-only"),
+    read_only: readOnly,
     bind: {
       create_host_path: false,
     },

@@ -8,6 +8,15 @@ export PATH="${JAVA_HOME}/bin:${MAVEN_HOME}/bin:/opt/agent-tools/node_modules/.b
 export ZSH="/opt/oh-my-zsh"
 export ZSH_CUSTOM="${ZSH}/custom"
 
+typeset -g DOTFILES_PROMPT="${DOTFILES_PROMPT:-p10k}"
+case "$DOTFILES_PROMPT" in
+  p10k|starship) ;;
+  *)
+    print -u2 -- "agent-shell: unknown DOTFILES_PROMPT '$DOTFILES_PROMPT'; using p10k"
+    DOTFILES_PROMPT=p10k
+    ;;
+esac
+
 HISTFILE="${HOME}/.zsh_history"
 HISTSIZE=50000
 SAVEHIST=50000
@@ -18,6 +27,11 @@ setopt hist_reduce_blanks
 
 if [[ -r /opt/agent-shell/zshrc ]]; then
   source /opt/agent-shell/zshrc
+elif [[ "$DOTFILES_PROMPT" == starship ]]; then
+  ZSH_THEME=""
+  plugins=(git)
+  source "${ZSH}/oh-my-zsh.sh"
+  eval "$(starship init zsh)"
 else
   ZSH_THEME="powerlevel10k/powerlevel10k"
   plugins=(git)

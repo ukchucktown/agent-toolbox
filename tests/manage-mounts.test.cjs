@@ -130,3 +130,30 @@ test("rejects missing sources and reserved container targets", () => {
     assert.match(reserved.stderr, /reserved/);
   });
 });
+
+test("allows only read-only mounts at the protected global skill targets", () => {
+  withWorkspace(({ config, source }) => {
+    for (const target of [
+      "/home/agent/.agents/skills",
+      "/home/agent/.codex/skills",
+      "/home/agent/.claude/skills",
+    ]) {
+      const writable = run("add", config, source, target);
+      assert.equal(writable.status, 2);
+      assert.match(writable.stderr, /must be read-only/);
+
+      const readOnly = run("add", config, source, target, "--read-only");
+      assert.equal(readOnly.status, 0, readOnly.stderr);
+    }
+
+    const nested = run(
+      "add",
+      config,
+      source,
+      "/home/agent/.codex/skills/unmanaged",
+      "--read-only",
+    );
+    assert.equal(nested.status, 2);
+    assert.match(nested.stderr, /reserved/);
+  });
+});

@@ -8,6 +8,14 @@ const dockerfile = fs.readFileSync(
   path.join(repository, "Dockerfile"),
   "utf8",
 );
+const compose = fs.readFileSync(
+  path.join(repository, "compose.yaml"),
+  "utf8",
+);
+const entrypoint = fs.readFileSync(
+  path.join(repository, "entrypoint.sh"),
+  "utf8",
+);
 const launcher = fs.readFileSync(path.join(repository, "sandbox"), "utf8");
 const sshd = fs.readFileSync(path.join(repository, "sshd_config"), "utf8");
 const zshrc = fs.readFileSync(
@@ -31,6 +39,19 @@ test("loads an optional external shell package from a fixed path", () => {
   assert.match(dockerfile, /ZDOTDIR=\/etc\/agent-shell/);
   assert.match(zshrc, /\/opt\/agent-shell\/zshrc/);
   assert.match(tmux, /\/opt\/agent-shell\/tmux\.conf/);
+});
+
+test("supports selecting Powerlevel10k or Starship", () => {
+  assert.match(compose, /DOTFILES_PROMPT/);
+  assert.match(zshrc, /DOTFILES_PROMPT/);
+  assert.match(zshrc, /starship init zsh/);
+});
+
+test("preserves protected read-only global skill mounts during startup", () => {
+  assert.match(entrypoint, /\.agents\/skills/);
+  assert.match(entrypoint, /\.codex\/skills/);
+  assert.match(entrypoint, /\.claude\/skills/);
+  assert.match(entrypoint, /-prune/);
 });
 
 test("pins the bundled Zsh framework and plugins", () => {

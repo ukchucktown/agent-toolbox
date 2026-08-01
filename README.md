@@ -22,7 +22,7 @@ server. The image includes:
 | Camunda 8 | `c8`, `c8ctl`, and the BPMN, element-template, and FEEL commands |
 | GitHub | Git, Git LFS, and GitHub CLI (`gh`) |
 | Editors | Neovim 0.12 with built-in `vim.pack`, Tree-sitter CLI, Vim, and Nano |
-| Shell | Bash, Zsh, tmux, `fzf`, `tree`, `bat`, `fd`, `rg`, and `jq` |
+| Shell | Bash, Zsh, Powerlevel10k, Starship, tmux, `fzf`, `tree`, `bat`, `fd`, `rg`, and `jq` |
 | Native builds | GCC, G++, Make, and other standard build tools |
 
 Runtime version lines and independently downloaded tool releases are pinned in
@@ -32,8 +32,9 @@ the selected environment file so upgrades remain deliberate. Run
 ### Match your local shell
 
 Zsh is the default shell for local container terminals, SSH connections, and
-tmux. The image includes Oh My Zsh, Powerlevel10k, fzf-tab, autosuggestions,
-and syntax highlighting.
+tmux. The image includes Oh My Zsh, Powerlevel10k, Starship, fzf-tab,
+autosuggestions, and syntax highlighting. Set `DOTFILES_PROMPT` to `p10k` or
+`starship` in the selected environment file; `p10k` is the safe default.
 
 To keep personal shell settings outside this public repository, create a
 dedicated directory containing a `zshrc` file and, optionally, `tmux.conf` and
@@ -47,10 +48,34 @@ other files sourced by that configuration. Mount only that directory:
 
 When present, `/opt/agent-shell/zshrc` replaces the built-in interactive Zsh
 setup and `/opt/agent-shell/tmux.conf` extends the built-in tmux configuration.
-These files execute inside every interactive session, so keep the directory
-private, exclude secrets, and mount it read-only. Fonts, window chrome, and the
-terminal color theme remain controlled by the host terminal emulator, such as
-Ghostty on macOS, and by the mobile terminal on a phone.
+Other files in that directory can be sourced by `zshrc`, which is useful for a
+single shared prompt-spacing module. A custom Starship configuration can be
+mounted read-only at `/opt/agent-starship.toml`. These files execute inside
+every interactive session, so keep the directory private, exclude secrets, and
+mount it read-only. Fonts, window chrome, and the terminal color theme remain
+controlled by the host terminal emulator, such as Ghostty on macOS, and by the
+mobile terminal on a phone.
+
+### Share global agent skills read-only
+
+If Codex and Claude share a canonical host collection at `~/.agents/skills`,
+mount that directory at all three global discovery paths:
+
+```bash
+for target in \
+  /home/agent/.agents/skills \
+  /home/agent/.codex/skills \
+  /home/agent/.claude/skills
+do
+  ./sandbox mount add "$HOME/.agents/skills" "$target" --read-only
+done
+```
+
+These are the only permitted bind targets below `/home/agent`, and the mount
+validator requires all three to be read-only. Codex and Claude can discover the
+same global skills as the host, but skill installers and agent sessions cannot
+add, update, or remove them. Authentication, settings, plugins, history, and
+other client state remain independent in the `agent-home` volume.
 
 ## Camunda 8 development support
 
@@ -159,9 +184,11 @@ Then use the launcher instead of editing the file:
 
 Host sources must already exist and must be regular files or directories.
 Container targets must be absolute and cannot overlap the persistent
-`/home/agent` or `/etc/ssh/host_keys` mounts. The script also sets
-`create_host_path: false`, preventing a mistyped host path from being silently
-created as an empty directory. At least one mount must remain configured.
+`/home/agent` or `/etc/ssh/host_keys` mounts. The only exceptions are the exact
+global skill targets documented above, and those are accepted only as
+read-only mounts. The script also sets `create_host_path: false`, preventing a
+mistyped host path from being silently created as an empty directory. At least
+one mount must remain configured.
 
 Mount commands change configuration only. Review and apply the result
 explicitly:
@@ -172,7 +199,7 @@ explicitly:
 ```
 
 When `~/.config` is managed by Stow, the helper updates the file inside the
-private dotfiles repository. Commit that dotfiles change to preserve the mount
+dotfiles repository. Commit that dotfiles change to preserve the mount
 list for future machines.
 
 Applying a changed mount configuration recreates the container and stops its

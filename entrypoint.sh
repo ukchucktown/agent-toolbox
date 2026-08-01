@@ -14,7 +14,16 @@ if [[ ! -e "${agent_home}/.profile" ]]; then
   cp -a /etc/skel/. "${agent_home}/"
 fi
 
-chown -R agent:agent "${agent_home}"
+# The three global skill paths may be read-only bind mounts. Keep ownership
+# repair inside the persistent home filesystem and never traverse or mutate
+# those host-managed collections.
+chown agent:agent "${agent_home}"
+find "${agent_home}" -xdev \
+  \( \
+    -path "${agent_home}/.agents/skills" -o \
+    -path "${agent_home}/.codex/skills" -o \
+    -path "${agent_home}/.claude/skills" \
+  \) -prune -o -exec chown -h agent:agent {} +
 
 if [[ ! -s "${host_key_dir}/ssh_host_ed25519_key" ]]; then
   ssh-keygen -q -t ed25519 -N '' -f "${host_key_dir}/ssh_host_ed25519_key"

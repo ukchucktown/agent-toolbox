@@ -18,6 +18,33 @@ RUN cargo install \
       --version "${TREE_SITTER_CLI_VERSION}" \
       tree-sitter-cli
 
+FROM node:22-bookworm-slim AS tmux-toolchain
+
+ARG TMUX_VERSION
+ARG TMUX_SHA256
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      bison \
+      build-essential \
+      ca-certificates \
+      curl \
+      libevent-dev \
+      libncurses-dev \
+      pkg-config \
+    && curl --fail --silent --show-error --location \
+      "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz" \
+      --output /tmp/tmux.tar.gz \
+    && echo "${TMUX_SHA256}  /tmp/tmux.tar.gz" | sha256sum --check --strict \
+    && install -d /tmp/tmux-source \
+    && tar --extract --gzip --file /tmp/tmux.tar.gz \
+      --directory /tmp/tmux-source \
+      --strip-components 1 \
+    && cd /tmp/tmux-source \
+    && ./configure --prefix=/usr/local --disable-utf8proc \
+    && make -j"$(nproc)" \
+    && make install DESTDIR=/opt/tmux
+
 FROM node:22-bookworm-slim
 
 ARG TARGETARCH
@@ -28,6 +55,11 @@ ARG GH_VERSION
 ARG NEOVIM_VERSION
 ARG NEOVIM_SHA256_AMD64
 ARG NEOVIM_SHA256_ARM64
+ARG TMUX_VERSION
+ARG TMUX_SHA256
+ARG STARSHIP_VERSION
+ARG STARSHIP_SHA256_AMD64
+ARG STARSHIP_SHA256_ARM64
 ARG C8CTL_VERSION
 ARG OH_MY_ZSH_VERSION
 ARG POWERLEVEL10K_VERSION
@@ -53,6 +85,7 @@ COPY --from=uv-toolchain /uv /uvx /usr/local/bin/
 COPY --from=java-toolchain /opt/java/openjdk /opt/java/openjdk
 COPY --from=java-toolchain /usr/share/maven /usr/share/maven
 COPY --from=tree-sitter-toolchain /opt/tree-sitter/bin/tree-sitter /usr/local/bin/tree-sitter
+COPY --from=tmux-toolchain /opt/tmux/usr/local/ /usr/local/
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -69,6 +102,9 @@ RUN apt-get update \
         iproute2 \
         jq \
         less \
+        libevent-core-2.1-7 \
+        libncursesw6 \
+        libtinfo6 \
         mosh \
         nano \
         netcat-openbsd \
@@ -78,7 +114,6 @@ RUN apt-get update \
         ripgrep \
         sudo \
         tini \
-        tmux \
         tree \
         unzip \
         vim-tiny \
@@ -162,6 +197,24 @@ RUN case "${TARGETARCH}" in \
     && mv "/opt/nvim-linux-${neovim_arch}" /opt/nvim \
     && ln -s /opt/nvim/bin/nvim /usr/local/bin/nvim \
     && rm "/tmp/${neovim_archive}"
+
+RUN case "${TARGETARCH}" in \
+      amd64) starship_arch="x86_64"; starship_sha256="${STARSHIP_SHA256_AMD64}" ;; \
+      arm64) starship_arch="aarch64"; starship_sha256="${STARSHIP_SHA256_ARM64}" ;; \
+      *) echo "unsupported Docker architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && starship_archive="starship-${starship_arch}-unknown-linux-musl.tar.gz" \
+    && curl --fail --silent --show-error --location \
+      "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/${starship_archive}" \
+      --output "/tmp/${starship_archive}" \
+    && printf '%s  %s\n' "${starship_sha256}" "/tmp/${starship_archive}" \
+      | sha256sum --check --strict - \
+    && tar --extract --gzip \
+      --file "/tmp/${starship_archive}" \
+      --directory /usr/local/bin \
+      starship \
+    && chmod 0755 /usr/local/bin/starship \
+    && rm "/tmp/${starship_archive}"
 
 RUN groupadd --gid "${AGENT_GID}" agent \
     && useradd --uid "${AGENT_UID}" --gid "${AGENT_GID}" --create-home --shell /usr/bin/zsh agent \

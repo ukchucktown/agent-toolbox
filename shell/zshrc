@@ -5,19 +5,12 @@ export JAVA_HOME="/opt/java/openjdk"
 export MAVEN_HOME="/usr/share/maven"
 export SHELL="/usr/bin/zsh"
 export PATH="${JAVA_HOME}/bin:${MAVEN_HOME}/bin:/opt/agent-tools/node_modules/.bin:/usr/local/bin:${HOME}/.local/bin:${PATH}"
-export ZSH="/opt/oh-my-zsh"
-export ZSH_CUSTOM="${ZSH}/custom"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${HOME}/.cache}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-${HOME}/.local/state}"
 
-typeset -g DOTFILES_PROMPT="${DOTFILES_PROMPT:-p10k}"
-case "$DOTFILES_PROMPT" in
-  p10k|starship) ;;
-  *)
-    print -u2 -- "agent-shell: unknown DOTFILES_PROMPT '$DOTFILES_PROMPT'; using p10k"
-    DOTFILES_PROMPT=p10k
-    ;;
-esac
+mkdir -p "${XDG_CACHE_HOME}/zsh" "${XDG_STATE_HOME}/zsh"
 
-HISTFILE="${HOME}/.zsh_history"
+HISTFILE="${XDG_STATE_HOME}/zsh/history"
 HISTSIZE=50000
 SAVEHIST=50000
 setopt append_history
@@ -25,16 +18,57 @@ setopt share_history
 setopt hist_ignore_all_dups
 setopt hist_reduce_blanks
 
+autoload -Uz compinit
+compinit -d "${XDG_CACHE_HOME}/zsh/zcompdump"
+zmodload zsh/complist
+
+zstyle ':completion:*:descriptions' format '[%d]'
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
+zstyle ':completion:*' menu no
+zstyle ':fzf-tab:*' fzf-flags --preview-window=down:40%:wrap
+
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+fi
+
+source /etc/agent-shell/fzf.zsh
+source /etc/agent-shell/aliases.zsh
+
+export ZSH_AUTOSUGGEST_MANUAL_REBIND=1
+export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=110'
+
+source /opt/zsh-plugins/fzf-tab/fzf-tab.plugin.zsh
+source /opt/zsh-plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+source /opt/zsh-plugins/zsh-history-substring-search/zsh-history-substring-search.zsh
+
+bindkey -e
+bindkey '^[[C' autosuggest-accept
+bindkey '^[OC' autosuggest-accept
+bindkey '^[[A' history-substring-search-up
+bindkey '^[[B' history-substring-search-down
+bindkey '^F' _fzf_file_no_hidden
+
+# A trusted mounted package extends the portable baseline with personal colors,
+# bindings, title handling, and prompt spacing.
 if [[ -r /opt/agent-shell/zshrc ]]; then
   source /opt/agent-shell/zshrc
-elif [[ "$DOTFILES_PROMPT" == starship ]]; then
-  ZSH_THEME=""
-  plugins=(git)
-  source "${ZSH}/oh-my-zsh.sh"
+fi
+
+if [[ -r /opt/agent-starship.toml ]]; then
+  export STARSHIP_CONFIG=/opt/agent-starship.toml
+fi
+
+if command -v starship >/dev/null 2>&1; then
   eval "$(starship init zsh)"
 else
-  ZSH_THEME="powerlevel10k/powerlevel10k"
-  plugins=(git)
-  source "${ZSH}/oh-my-zsh.sh"
-  source "${ZSH_CUSTOM}/themes/powerlevel10k/config/p10k-lean.zsh"
+  print -u2 -- 'agent-shell: starship is unavailable; using a minimal prompt'
+  PROMPT='%F{76}❯%f '
 fi
+
+export PROMPT_EOL_MARK=''
+
+# Syntax highlighting must be loaded after all widgets and bindings.
+source /opt/zsh-plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+ZSH_HIGHLIGHT_STYLES[path]='none'
+ZSH_HIGHLIGHT_STYLES[path_prefix]='none'
+ZSH_HIGHLIGHT_STYLES[globbing]='none'

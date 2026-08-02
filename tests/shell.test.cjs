@@ -41,10 +41,27 @@ test("loads an optional external shell package from a fixed path", () => {
   assert.match(tmux, /\/opt\/agent-shell\/tmux\.conf/);
 });
 
-test("supports selecting Powerlevel10k or Starship", () => {
-  assert.match(compose, /DOTFILES_PROMPT/);
-  assert.match(zshrc, /DOTFILES_PROMPT/);
+test("uses Starship without a shell framework", () => {
   assert.match(zshrc, /starship init zsh/);
+  assert.doesNotMatch(compose, /DOTFILES_PROMPT/);
+  assert.doesNotMatch(zshrc, /oh-my-zsh|powerlevel10k|p10k/i);
+});
+
+test("provides the host-style listing and navigation shell baseline", () => {
+  const aliases = fs.readFileSync(
+    path.join(repository, "shell", "aliases.zsh"),
+    "utf8",
+  );
+
+  assert.match(dockerfile, /EZA_VERSION/);
+  assert.match(dockerfile, /ZOXIDE_VERSION/);
+  assert.match(zshrc, /source \/etc\/agent-shell\/aliases\.zsh/);
+  assert.match(zshrc, /zoxide init zsh/);
+  assert.match(aliases, /alias ll='eza -lh --icons --git --no-user --no-time'/);
+  assert.doesNotMatch(
+    zshrc,
+    /source \/opt\/agent-shell\/zshrc\s+return/,
+  );
 });
 
 test("preserves protected read-only global skill mounts during startup", () => {
@@ -54,14 +71,15 @@ test("preserves protected read-only global skill mounts during startup", () => {
   assert.match(entrypoint, /-prune/);
 });
 
-test("pins the bundled Zsh framework and plugins", () => {
+test("pins the bundled standalone Zsh plugins", () => {
   for (const expected of [
-    "OH_MY_ZSH_VERSION",
-    "POWERLEVEL10K_VERSION",
     "ZSH_AUTOSUGGESTIONS_VERSION",
+    "ZSH_HISTORY_SUBSTRING_SEARCH_VERSION",
     "ZSH_SYNTAX_HIGHLIGHTING_VERSION",
     "FZF_TAB_VERSION",
   ]) {
     assert.match(dockerfile, new RegExp(expected));
   }
+  assert.match(dockerfile, /\/opt\/zsh-plugins/);
+  assert.doesNotMatch(dockerfile, /oh-my-zsh|powerlevel10k/i);
 });

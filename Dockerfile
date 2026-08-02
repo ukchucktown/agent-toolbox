@@ -3,13 +3,18 @@
 ARG UV_VERSION
 ARG JAVA_VERSION
 ARG MAVEN_VERSION
+ARG RUST_VERSION
 ARG TREE_SITTER_CLI_VERSION
+ARG EZA_VERSION
+ARG ZOXIDE_VERSION
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv-toolchain
 FROM maven:${MAVEN_VERSION}-eclipse-temurin-${JAVA_VERSION} AS java-toolchain
-FROM rust:1.88-bookworm AS tree-sitter-toolchain
+FROM rust:${RUST_VERSION}-bookworm AS tree-sitter-toolchain
 
 ARG TREE_SITTER_CLI_VERSION
+ARG EZA_VERSION
+ARG ZOXIDE_VERSION
 
 RUN cargo install \
       --locked \
@@ -17,6 +22,17 @@ RUN cargo install \
       --root /opt/tree-sitter \
       --version "${TREE_SITTER_CLI_VERSION}" \
       tree-sitter-cli
+
+RUN cargo install \
+      --locked \
+      --root /opt/eza \
+      --version "${EZA_VERSION}" \
+      eza \
+    && cargo install \
+      --locked \
+      --root /opt/zoxide \
+      --version "${ZOXIDE_VERSION}" \
+      zoxide
 
 FROM node:22-bookworm-slim AS tmux-toolchain
 
@@ -61,9 +77,10 @@ ARG STARSHIP_VERSION
 ARG STARSHIP_SHA256_AMD64
 ARG STARSHIP_SHA256_ARM64
 ARG C8CTL_VERSION
-ARG OH_MY_ZSH_VERSION
-ARG POWERLEVEL10K_VERSION
+ARG EZA_VERSION
+ARG ZOXIDE_VERSION
 ARG ZSH_AUTOSUGGESTIONS_VERSION
+ARG ZSH_HISTORY_SUBSTRING_SEARCH_VERSION
 ARG ZSH_SYNTAX_HIGHLIGHTING_VERSION
 ARG FZF_TAB_VERSION
 ARG CODEX_VERSION
@@ -85,6 +102,8 @@ COPY --from=uv-toolchain /uv /uvx /usr/local/bin/
 COPY --from=java-toolchain /opt/java/openjdk /opt/java/openjdk
 COPY --from=java-toolchain /usr/share/maven /usr/share/maven
 COPY --from=tree-sitter-toolchain /opt/tree-sitter/bin/tree-sitter /usr/local/bin/tree-sitter
+COPY --from=tree-sitter-toolchain /opt/eza/bin/eza /usr/local/bin/eza
+COPY --from=tree-sitter-toolchain /opt/zoxide/bin/zoxide /usr/local/bin/zoxide
 COPY --from=tmux-toolchain /opt/tmux/usr/local/ /usr/local/
 
 RUN apt-get update \
@@ -135,23 +154,19 @@ RUN install_component() { \
       rm -rf "${destination}/.git"; \
     }; \
     install_component \
-      /opt/oh-my-zsh \
-      https://github.com/ohmyzsh/ohmyzsh.git \
-      "${OH_MY_ZSH_VERSION}"; \
-    install_component \
-      /opt/oh-my-zsh/custom/themes/powerlevel10k \
-      https://github.com/romkatv/powerlevel10k.git \
-      "${POWERLEVEL10K_VERSION}"; \
-    install_component \
-      /opt/oh-my-zsh/custom/plugins/zsh-autosuggestions \
+      /opt/zsh-plugins/zsh-autosuggestions \
       https://github.com/zsh-users/zsh-autosuggestions.git \
       "${ZSH_AUTOSUGGESTIONS_VERSION}"; \
     install_component \
-      /opt/oh-my-zsh/custom/plugins/zsh-syntax-highlighting \
+      /opt/zsh-plugins/zsh-history-substring-search \
+      https://github.com/zsh-users/zsh-history-substring-search.git \
+      "${ZSH_HISTORY_SUBSTRING_SEARCH_VERSION}"; \
+    install_component \
+      /opt/zsh-plugins/zsh-syntax-highlighting \
       https://github.com/zsh-users/zsh-syntax-highlighting.git \
       "${ZSH_SYNTAX_HIGHLIGHTING_VERSION}"; \
     install_component \
-      /opt/oh-my-zsh/custom/plugins/fzf-tab \
+      /opt/zsh-plugins/fzf-tab \
       https://github.com/Aloxaf/fzf-tab.git \
       "${FZF_TAB_VERSION}"
 
@@ -264,6 +279,8 @@ COPY scripts/add-authorized-key.cjs /usr/local/bin/add-authorized-key
 COPY scripts/camunda-host.cjs /usr/local/bin/camunda-host
 COPY scripts/profile.sh /etc/profile.d/agent-sandbox.sh
 COPY shell/zshrc /etc/agent-shell/.zshrc
+COPY shell/aliases.zsh /etc/agent-shell/aliases.zsh
+COPY shell/fzf.zsh /etc/agent-shell/fzf.zsh
 COPY shell/tmux.conf /etc/tmux.conf
 
 RUN chmod 0755 \
@@ -271,7 +288,11 @@ RUN chmod 0755 \
       /usr/local/bin/add-authorized-key \
       /usr/local/bin/camunda-host \
       /etc/profile.d/agent-sandbox.sh \
-    && chmod 0644 /etc/agent-shell/.zshrc /etc/tmux.conf \
+    && chmod 0644 \
+      /etc/agent-shell/.zshrc \
+      /etc/agent-shell/aliases.zsh \
+      /etc/agent-shell/fzf.zsh \
+      /etc/tmux.conf \
     && install -d -m 0755 /run/sshd /etc/ssh/host_keys
 
 WORKDIR /workspace

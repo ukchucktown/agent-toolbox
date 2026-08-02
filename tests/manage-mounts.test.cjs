@@ -86,7 +86,7 @@ test("supports read-only mounts and rejects duplicate targets", () => {
 
 test("supports read-only regular-file mounts", () => {
   withWorkspace(({ config, directory, source }) => {
-    const shellConfig = path.join(directory, "p10k.zsh");
+    const shellConfig = path.join(directory, "starship.toml");
     fs.writeFileSync(shellConfig, "# private prompt configuration\n");
 
     const primary = run("add", config, source, "/workspace");
@@ -96,7 +96,7 @@ test("supports read-only regular-file mounts", () => {
       "add",
       config,
       shellConfig,
-      "/opt/agent-p10k.zsh",
+      "/opt/agent-starship.toml",
       "--read-only",
     );
     assert.equal(addFile.status, 0, addFile.stderr);
@@ -105,7 +105,7 @@ test("supports read-only regular-file mounts", () => {
     assert.deepEqual(parsed.services.sandbox.volumes[1], {
       type: "bind",
       source: fs.realpathSync(shellConfig),
-      target: "/opt/agent-p10k.zsh",
+      target: "/opt/agent-starship.toml",
       read_only: true,
       bind: {
         create_host_path: false,

@@ -22,7 +22,7 @@ server. The image includes:
 | Camunda 8 | `c8`, `c8ctl`, and the BPMN, element-template, and FEEL commands |
 | GitHub | Git, Git LFS, and GitHub CLI (`gh`) |
 | Editors | Neovim 0.12 with built-in `vim.pack`, Tree-sitter CLI, Vim, and Nano |
-| Shell | Bash, Zsh, Powerlevel10k, Starship, tmux, `fzf`, `tree`, `bat`, `fd`, `rg`, and `jq` |
+| Shell | Bash, Zsh, Starship, tmux, `fzf`, `eza`, `bat`, `fd`, `zoxide`, `rg`, and `jq` |
 | Native builds | GCC, G++, Make, and other standard build tools |
 
 Runtime version lines and independently downloaded tool releases are pinned in
@@ -32,9 +32,12 @@ the selected environment file so upgrades remain deliberate. Run
 ### Match your local shell
 
 Zsh is the default shell for local container terminals, SSH connections, and
-tmux. The image includes Oh My Zsh, Powerlevel10k, Starship, fzf-tab,
-autosuggestions, and syntax highlighting. Set `DOTFILES_PROMPT` to `p10k` or
-`starship` in the selected environment file; `p10k` is the safe default.
+tmux. Starship is the sole prompt engine. The image installs `eza`, `zoxide`,
+host-style listing aliases and FZF behavior, plus fzf-tab, autosuggestions,
+history substring search, and syntax highlighting. The plugins are pinned
+standalone checkouts under `/opt/zsh-plugins`; no shell framework or theme
+manager is required. A mounted `/opt/agent-shell/zshrc` extends this portable
+baseline instead of replacing it.
 
 To keep personal shell settings outside this public repository, create a
 dedicated directory containing a `zshrc` file and, optionally, `tmux.conf` and
@@ -46,7 +49,7 @@ other files sourced by that configuration. Mount only that directory:
 ./sandbox up
 ```
 
-When present, `/opt/agent-shell/zshrc` replaces the built-in interactive Zsh
+When present, `/opt/agent-shell/zshrc` extends the built-in interactive Zsh
 setup and `/opt/agent-shell/tmux.conf` extends the built-in tmux configuration.
 Other files in that directory can be sourced by `zshrc`, which is useful for a
 single shared prompt-spacing module. A custom Starship configuration can be

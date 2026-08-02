@@ -1,0 +1,32 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  toolbox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Zsh
+        run: sudo apt-get update && sudo apt-get install --yes zsh
+
+      - name: Run tests
+        run: node --test tests/*.test.cjs
+
+      - name: Check shell syntax
+        run: |
+          bash -n sandbox entrypoint.sh healthcheck.sh
+          zsh -n shell/zshrc shell/aliases.zsh shell/fzf.zsh
+
+      - name: Validate Compose configuration
+        run: docker compose --env-file .env.example config --quiet

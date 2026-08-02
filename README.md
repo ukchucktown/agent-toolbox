@@ -1,9 +1,74 @@
 # Agent Toolbox
 
-A container-scoped remote development host for
-[Moshi](https://getmoshi.app/), [Herdr](https://herdr.dev/), Codex CLI, and
-Claude Code. The container exposes a key-only SSH endpoint and mounts chosen
-host files and directories at explicit paths inside the container.
+A container-scoped AI development host for running Codex CLI, Claude Code, and
+other terminal agents with less access to the host machine. Agent Toolbox
+combines an explicit-mount security boundary with persistent sessions and
+SSH/Mosh access from a desktop or phone.
+
+It is the sandbox half of the
+[terminal-first AI development environment](https://github.com/ukchucktown/dotfiles),
+but it also works independently with its own portable Zsh, Starship, tmux,
+Neovim, Eza, FZF, and zoxide setup.
+
+## One session, two clients
+
+<table>
+  <tr>
+    <td width="68%">
+      <img src="docs/images/desktop-claude-session.png" alt="Claude Code running in the Agent Toolbox tmux session from a laptop terminal">
+    </td>
+    <td width="32%">
+      <img src="docs/images/phone-claude-session.png" alt="The same Claude Code Agent Toolbox session accessed from a phone through Moshi and Mosh">
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Laptop:</strong> Ghostty attached to the persistent <code>agent-sandbox</code> tmux session.</td>
+    <td><strong>Phone:</strong> Moshi and Mosh attached to the same session while away from the home network.</td>
+  </tr>
+</table>
+
+Both clients are viewing the same `1:claude` tmux window. Work continues inside
+the container when either client sleeps, changes networks, or disconnects.
+
+## Why Agent Toolbox
+
+- **Narrow host exposure:** projects and configuration appear only through a
+  reviewed list of read-write or read-only mounts. The Docker socket, host home
+  directory, SSH configuration, and system credential stores are not mounted.
+- **A complete toolchain:** agents receive pinned JavaScript, Python, Java,
+  Rust, GitHub, Camunda, editor, shell, and native build tools.
+- **Durable work:** tmux and Herdr keep shells and agents alive across client
+  disconnects while named volumes retain agent login and pairing state.
+- **Phone orchestration:** SSH provides key authentication, Mosh handles roaming
+  between networks, and Moshi supplies the mobile agent experience.
+
+```mermaid
+flowchart LR
+    desktop["Desktop terminal"] -->|"local shell or SSH"| sandbox
+    phone["Phone + Moshi"] -->|"SSH bootstrap + Mosh"| sandbox["Agent Toolbox container"]
+    projects["Approved projects"] <-->|"explicit mounts"| sandbox
+    config["Optional shared config"] -->|"read-only"| sandbox
+    sandbox --> state["Persistent agent sessions"]
+```
+
+## Quick start
+
+The default configuration listens only on the local machine. Choose a project
+directory that agents are allowed to read and modify:
+
+```bash
+git clone https://github.com/ukchucktown/agent-toolbox.git
+cd agent-toolbox
+cp .env.example .env
+./sandbox mount add /absolute/path/to/projects /workspace
+./sandbox build
+./sandbox up
+./sandbox status
+```
+
+Then open a local shell with `./sandbox shell`. Configure key-only SSH and read
+[SECURITY.md](SECURITY.md) before making the service reachable from another
+device or network.
 
 The Docker runtime retains the `agent-sandbox` name so existing installations
 can upgrade without creating new containers or volumes.
@@ -460,6 +525,8 @@ Do not run `docker compose down --volumes` unless you intend to delete the
 persisted Codex login, Claude login, Herdr state, Moshi pairing, and SSH host
 identity.
 
-## License
+## Contributing and license
 
-[MIT](LICENSE)
+Improvements to portability, documentation, testing, and safe defaults are
+welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+Agent Toolbox is available under the [MIT License](LICENSE).
